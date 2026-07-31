@@ -1,0 +1,16 @@
+{
+  "task": "transcribe",
+  "language": "french",
+  "duration": 2.5,
+  "text": "Bonjour à tous, bienvenue ! 🎬",
+  "words": [
+    { "word": "Bonjour", "start": 0.0, "end": 0.42 },
+    { "word": "à", "start": 0.42, "end": 0.5 },
+    { "word": "tous", "start": 0.5, "end": 0.88 },
+    { "word": "   ", "start": 0.88, "end": 0.9 },
+    { "word": "bienvenue", "start": 1.2, "end": 1.95 },
+    { "word": "!", "start": 1.95, "end": 1.95 },
+    { "word": "🎬", "start": 2.0, "end": 2.3 },
+    { "word": "anticonstitutionnellement", "start": 2.3, "end": 2.5 }
+  ]
+}
