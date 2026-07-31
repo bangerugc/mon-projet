@@ -153,6 +153,7 @@ export function StylePanel() {
             type="button"
             onClick={() => setStyle({ uppercase: !style.uppercase })}
             data-testid="toggle-uppercase"
+            data-active={style.uppercase || undefined}
             className={[
               "min-h-11 rounded-md border px-3 text-sm",
               style.uppercase ? "border-brand bg-brand/10 text-ink" : "border-line text-ink-dim",

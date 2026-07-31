@@ -37,6 +37,8 @@ export type TranscriptionStatus =
 export type EditorState = {
   /** blob: en preview, https S3 au render (§13 piège n°3). */
   videoSrc: string | null;
+  /** URL S3 https de la vidéo (upload) — utilisée par le render Lambda. */
+  s3Url: string | null;
   videoMeta: VideoMeta | null;
   words: Word[];
   style: CaptionStyle;
@@ -48,6 +50,7 @@ export type EditorState = {
 
   // ── Setters ────────────────────────────────────────────────────────────
   setVideoSrc: (videoSrc: string | null) => void;
+  setS3Url: (s3Url: string | null) => void;
   setVideoMeta: (videoMeta: VideoMeta | null) => void;
   /** Nouveau transcript → réinitialise l'historique. */
   setWords: (words: Word[]) => void;
@@ -98,6 +101,7 @@ export const DEFAULT_STYLE: CaptionStyle = {
 
 const INITIAL = {
   videoSrc: null as string | null,
+  s3Url: null as string | null,
   videoMeta: null as VideoMeta | null,
   words: [] as Word[],
   style: DEFAULT_STYLE,
@@ -123,6 +127,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     ...INITIAL,
 
     setVideoSrc: (videoSrc) => set({ videoSrc }),
+    setS3Url: (s3Url) => set({ s3Url }),
     setVideoMeta: (videoMeta) => set({ videoMeta }),
 
     // Nouveau transcript : on repart d'un historique vierge.

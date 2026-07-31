@@ -78,6 +78,8 @@ export default function HomePage() {
       await uploadToS3(presign.data.uploadUrl, file, (f) =>
         setUpload({ phase: "uploading", progress: f }),
       );
+      // URL S3 https → servira au render Lambda (jamais le blob, piège n°3).
+      useEditorStore.getState().setS3Url(presign.data.publicUrl);
       setUpload({ phase: "done" });
     } catch (e) {
       setUpload({

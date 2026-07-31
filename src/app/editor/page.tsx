@@ -7,6 +7,7 @@ import { PlayerStage } from "@/components/PlayerStage";
 import { WordRail } from "@/components/WordRail";
 import { WordEditor } from "@/components/WordEditor";
 import { StylePanel } from "@/components/StylePanel";
+import { ExportDialog } from "@/components/ExportDialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -129,7 +130,10 @@ export default function EditorPage() {
         <Link href="/" className={buttonVariants({ variant: "ghost", size: "sm" })}>
           ← Retour
         </Link>
-        {undoRedoBar}
+        <div className="flex items-center gap-2">
+          {undoRedoBar}
+          <ExportDialog />
+        </div>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">

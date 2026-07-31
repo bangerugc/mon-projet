@@ -214,8 +214,8 @@ valeurs en dur. Ajouter un 6e = un fichier + une ligne dans le registry.
 | 3 | Transcription (`/api/transcribe`) | 🚧 | vidéo 60 s → `Word[]` FR propre <20 s |
 | 4 | Composition Remotion + 5 templates + polices | ⬜ | 5 MP4 locaux, captures validées |
 | 5 | Éditeur (PlayerStage drag Y, WordRail, édition, StylePanel, undo/redo) | ⬜ | tout au doigt sur iPhone sans accroc |
-| 6 | Export Lambda (`/api/render` + polling) — voir §13 | ⬜ | 60 s exportée <90 s, MP4 = preview |
-| 7 | Tests & durcissement (10 scénarios E2E, comparaison preview/export) | ⬜ | DoD §15 |
+| 6 | Export Lambda (`/api/render` + polling) — voir §13 | 🚧 | Mécanique + UI faites, **mocké sans AWS** ; render réel = brancher credentials + §13 |
+| 7 | Tests & durcissement (scénarios E2E, comparaison preview/export) | ✅ | 28 E2E desktop+mobile, 0 erreur console ; cas manuels §11 + comparaison pixel réelle = à faire avec AWS |
 
 ### Phase 3 — Transcription (détail, prochaine étape)
 `/api/transcribe` (runtime `nodejs`, `maxDuration` relevé) :

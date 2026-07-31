@@ -101,6 +101,7 @@ export function PlayerStage({
       {/* Overlay de drag : capte le pointeur, jamais bloqué par un scroll tactile. */}
       <div
         data-testid="drag-overlay"
+        data-position-y={positionY.toFixed(2)}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
