@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { clampOffset } from "@/lib/timing";
 import * as actions from "@/lib/editor-actions";
+import { collapseRepetitionLoops } from "@/lib/openai";
 import { applyTemplateDefaults } from "@/lib/template-defaults";
 import type {
   CaptionRenderProps,
@@ -70,6 +71,8 @@ export type EditorState = {
   mergeWord: (id: string) => void;
   shiftWordTiming: (id: string, deltaMs: number) => void;
   setWordTiming: (id: string, startMs: number, endMs: number) => void;
+  /** Retire les répétitions consécutives de phrases (≥ 2× d'affilée). */
+  cleanRepetitions: () => void;
 
   // ── Undo / redo ──────────────────────────────────────────────────────────
   undo: () => void;
@@ -84,18 +87,18 @@ export type EditorState = {
   getRenderProps: () => CaptionRenderProps | null;
 };
 
-// Défauts = template "minimal" (§8) : blanc, une ligne, fade.
+// Défauts = preset "Hormozi 2" : gras italique majuscules, contour, mot actif vert.
 export const DEFAULT_STYLE: CaptionStyle = {
-  template: "minimal",
+  template: "hormozi2",
   font: "poppins",
-  fontSize: 6, // % de la largeur vidéo
+  fontSize: 7, // % de la largeur vidéo
   color: "#ffffff",
-  highlightColor: "#2f5bff",
-  strokeWidth: 0,
+  highlightColor: "#22c55e",
+  strokeWidth: 12,
   strokeColor: "#000000",
-  uppercase: false,
-  animation: "fade",
-  maxWordsPerLine: 4,
+  uppercase: true,
+  animation: "pop",
+  maxWordsPerLine: 3,
   positionY: 0.78,
 };
 
@@ -152,6 +155,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
       commit((w) => actions.shiftWordTiming(w, id, deltaMs)),
     setWordTiming: (id, startMs, endMs) =>
       commit((w) => actions.setWordTiming(w, id, startMs, endMs)),
+
+    // Seuil 2 : retire les répétitions consécutives (emphase du locuteur),
+    // garde les répétitions espacées (phrases distinctes). Annulable (historique).
+    cleanRepetitions: () => commit((w) => collapseRepetitionLoops(w, 2)),
 
     undo: () =>
       set((state) => {

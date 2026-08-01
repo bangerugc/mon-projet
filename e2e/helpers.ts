@@ -1,4 +1,5 @@
 import type { Page, Route } from "@playwright/test";
+import transcript from "./fixtures/transcript.json";
 
 /**
  * Collecte les erreurs console + pageerror pour les asserter (§11).
@@ -18,13 +19,29 @@ export function trackConsoleErrors(page: Page, ignore: RegExp[] = []): string[] 
 /** 404 attendus des polices (public/fonts/ vide tant que Shortfy ne les fournit pas). */
 export const FONT_404 = /Failed to load resource.*404|\.(ttf|otf)/i;
 
-/** Va jusqu'à l'éditeur : upload fixture → transcription démo → /editor. */
+/**
+ * Mocke /api/transcribe avec une fixture déterministe (§11 : « API OpenAI
+ * mockée »). Rend les E2E indépendants de la présence d'une clé dans
+ * .env.local (sinon la vraie route appellerait OpenAI). `body` override.
+ */
+export async function mockTranscribe(page: Page, body: unknown = transcript): Promise<void> {
+  await page.route("**/api/transcribe", (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+/** Va jusqu'à l'éditeur : upload fixture → transcription (mockée) → /editor. */
 export async function openEditorWithVideo(page: Page): Promise<void> {
   await mockS3Upload(page);
+  await mockTranscribe(page);
   await page.goto("/");
   await page.locator('input[type="file"]').setInputFiles("e2e/fixtures/sample.webm");
   await page.getByTestId("go-editor").click();
-  await page.getByTestId("word-rail").waitFor({ state: "visible" });
+  await page.getByTestId("play-toggle").waitFor({ state: "visible" });
 }
 
 /**

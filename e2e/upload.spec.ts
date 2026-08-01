@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { trackConsoleErrors, mockS3Upload } from "./helpers";
+import { trackConsoleErrors, mockS3Upload, mockTranscribe } from "./helpers";
 
 const FIXTURE = "e2e/fixtures/sample.webm";
 
@@ -31,6 +31,7 @@ test("vidéo valide → preview + upload S3 (mocké) jusqu'à 'Envoyée'", async
 }) => {
   const errors = trackConsoleErrors(page);
   await mockS3Upload(page);
+  await mockTranscribe(page);
 
   await page.goto("/");
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);

@@ -82,8 +82,14 @@ export function PlayerStage({
   return (
     <div
       ref={stageRef}
-      className="relative w-full overflow-hidden rounded-lg border border-line bg-black"
-      style={{ aspectRatio: `${videoMeta.width} / ${videoMeta.height}` }}
+      className="relative mx-auto w-full overflow-hidden rounded-xl border border-line bg-black shadow-sm"
+      style={{
+        aspectRatio: `${videoMeta.width} / ${videoMeta.height}`,
+        // Plafonne la hauteur (surtout en 9:16) et laisse la largeur suivre le
+        // ratio → vidéo compacte et centrée, jamais géante.
+        maxHeight: "38vh",
+        maxWidth: `calc(38vh * ${videoMeta.width} / ${videoMeta.height})`,
+      }}
     >
       <Player
         ref={playerRef}

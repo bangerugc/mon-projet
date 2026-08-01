@@ -18,12 +18,7 @@ export type Word = {
   confidence: number | null;
 };
 
-export type TemplateId =
-  | "minimal"
-  | "karaoke"
-  | "punch"
-  | "handwritten"
-  | "editorial";
+export type TemplateId = "leon" | "hormozi2" | "ali" | "hormozi3" | "luke";
 
 export type FontId =
   | "poppins"

@@ -69,10 +69,46 @@ export function getActiveWordIndex(
   const page = pages[pageIndex];
   if (!page) return -1;
 
+  return getActiveWordInPage(page, currentMs);
+}
+
+/** Petit maintien du dernier sous-titre après la fin de la parole (anti-coupure). */
+export const PAGE_HOLD_MS = 600;
+
+/**
+ * Index de la page À AFFICHER à `currentMs` (≠ page « active »). Une page reste
+ * affichée depuis son `startMs` JUSQU'AU début de la page suivante → aucun trou
+ * entre les pages (pas de clignotement). La dernière page tient encore
+ * PAGE_HOLD_MS après sa fin puis disparaît. -1 avant la 1re page.
+ */
+export function getCurrentPageIndex(
+  pages: CaptionPage[],
+  currentMs: number,
+): number {
+  const first = pages[0];
+  if (!first || currentMs < first.startMs) return -1;
+
+  let idx = 0;
+  for (let i = 0; i < pages.length; i++) {
+    const p = pages[i];
+    if (p && p.startMs <= currentMs) idx = i;
+    else break;
+  }
+
+  const current = pages[idx];
+  if (!current) return -1;
+  const next = pages[idx + 1];
+  // Dernière page : on la cache après un court maintien.
+  if (!next && currentMs >= current.endMs + PAGE_HOLD_MS) return -1;
+  return idx;
+}
+
+/** Index du mot actif DANS une page donnée à `currentMs`, ou -1 (gap inter-mots). */
+export function getActiveWordInPage(page: CaptionPage, currentMs: number): number {
   for (let i = 0; i < page.words.length; i++) {
     const word = page.words[i];
     if (!word) continue;
     if (currentMs >= word.startMs && currentMs < word.endMs) return i;
   }
-  return -1; // page affichée mais gap inter-mots (aucun mot surligné)
+  return -1;
 }

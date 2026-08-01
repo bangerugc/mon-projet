@@ -19,6 +19,18 @@ test("éditeur : aucun débordement horizontal", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+// L'éditeur desktop tient dans l'écran (page non scrollable, vidéo plafonnée).
+test("éditeur desktop : pas de scroll vertical de page", async ({ page }, info) => {
+  test.skip(info.project.name !== "chromium-desktop", "desktop uniquement");
+  const errors = trackConsoleErrors(page, [FONT_404]);
+  await openEditorWithVideo(page);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
+
 // §11 #5 — drag vertical des sous-titres, snap au centre (Pointer Events).
 test("drag des sous-titres vers le centre → snap à 0.50", async ({ page }) => {
   const errors = trackConsoleErrors(page, [FONT_404]);
@@ -66,7 +78,9 @@ test("basculer les majuscules est pris en compte", async ({ page }) => {
   if (await trigger.isVisible()) await trigger.click();
 
   const toggle = page.locator('[data-testid="toggle-uppercase"]:visible');
+  const before = await toggle.getAttribute("data-active");
   await toggle.click();
-  await expect(toggle).toHaveAttribute("data-active", "true");
+  const after = await toggle.getAttribute("data-active");
+  expect(after).not.toBe(before); // l'état a bien basculé
   expect(errors).toEqual([]);
 });

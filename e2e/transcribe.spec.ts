@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { trackConsoleErrors, mockS3Upload } from "./helpers";
+import { trackConsoleErrors, mockS3Upload, mockTranscribe } from "./helpers";
 
 const FIXTURE = "e2e/fixtures/sample.webm";
 
@@ -10,6 +10,7 @@ test("vidéo valide → transcription (démo) affichée avec les mots", async ({
 }) => {
   const errors = trackConsoleErrors(page);
   await mockS3Upload(page);
+  await mockTranscribe(page);
 
   await page.goto("/");
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
@@ -20,7 +21,6 @@ test("vidéo valide → transcription (démo) affichée avec les mots", async ({
     "14 mots transcrits",
   );
   await expect(transcript).toContainText("démo");
-  await expect(transcript).toContainText("Ceci"); // 1er mot de la démo
 
   expect(errors).toEqual([]);
 });

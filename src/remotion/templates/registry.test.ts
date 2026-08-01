@@ -3,13 +3,7 @@ import { TEMPLATES, applyTemplateDefaults } from "./index";
 import { DEFAULT_STYLE } from "@/store/useEditorStore";
 import type { TemplateId } from "@/lib/types";
 
-const IDS: TemplateId[] = [
-  "minimal",
-  "karaoke",
-  "punch",
-  "handwritten",
-  "editorial",
-];
+const IDS: TemplateId[] = ["leon", "hormozi2", "ali", "hormozi3", "luke"];
 
 describe("registry TEMPLATES", () => {
   it("contient les 5 templates avec label + composant + défauts", () => {
@@ -24,18 +18,17 @@ describe("registry TEMPLATES", () => {
 
 describe("applyTemplateDefaults", () => {
   it("applique les défauts du template et fixe le template", () => {
-    const s = applyTemplateDefaults(DEFAULT_STYLE, "punch");
-    expect(s.template).toBe("punch");
+    const s = applyTemplateDefaults(DEFAULT_STYLE, "leon");
+    expect(s.template).toBe("leon");
     expect(s.uppercase).toBe(true);
-    expect(s.maxWordsPerLine).toBe(2);
     expect(s.font).toBe("komikaAxis");
+    expect(s.highlightColor).toBe("#f5511e");
   });
 
-  it("préserve les champs non surchargés (couleur, position)", () => {
-    const custom = { ...DEFAULT_STYLE, color: "#ff0000", positionY: 0.5 };
-    const s = applyTemplateDefaults(custom, "editorial");
-    expect(s.color).toBe("#ff0000");
+  it("préserve les champs non surchargés (position)", () => {
+    const custom = { ...DEFAULT_STYLE, positionY: 0.5 };
+    const s = applyTemplateDefaults(custom, "ali");
     expect(s.positionY).toBe(0.5);
-    expect(s.template).toBe("editorial");
+    expect(s.template).toBe("ali");
   });
 });

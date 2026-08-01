@@ -2,13 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft, Play, Pause } from "lucide-react";
 import type { PlayerRef } from "@remotion/player";
 import { PlayerStage } from "@/components/PlayerStage";
-import { WordRail } from "@/components/WordRail";
-import { WordEditor } from "@/components/WordEditor";
 import { StylePanel } from "@/components/StylePanel";
 import { ExportDialog } from "@/components/ExportDialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
   SheetTrigger,
@@ -17,7 +16,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useEditorStore } from "@/store/useEditorStore";
-import { frameToMs, msToFrame } from "@/lib/timing";
+import { frameToMs } from "@/lib/timing";
 import { cn } from "@/lib/utils";
 
 export default function EditorPage() {
@@ -25,44 +24,34 @@ export default function EditorPage() {
   const videoMeta = useEditorStore((s) => s.videoMeta);
   const words = useEditorStore((s) => s.words);
   const style = useEditorStore((s) => s.style);
-  const offsetMs = useEditorStore((s) => s.offsetMs);
   const setStyle = useEditorStore((s) => s.setStyle);
-  const undo = useEditorStore((s) => s.undo);
-  const redo = useEditorStore((s) => s.redo);
-  const canUndo = useEditorStore((s) => s.past.length > 0);
-  const canRedo = useEditorStore((s) => s.future.length > 0);
   const getRenderProps = useEditorStore((s) => s.getRenderProps);
 
   const playerRef = useRef<PlayerRef | null>(null);
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
 
   const renderProps = getRenderProps();
   const fps = videoMeta?.fps ?? 30;
   const hasVideo = renderProps !== null;
 
-  // Suivi de la frame courante du Player → sync WordRail.
+  // Suivi de la frame courante + lecture/pause du Player (timecode).
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
     const onFrame = (e: { detail: { frame: number } }) =>
       setCurrentFrame(e.detail.frame);
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
     player.addEventListener("frameupdate", onFrame);
-    return () => player.removeEventListener("frameupdate", onFrame);
-  }, [hasVideo]);
-
-  // Undo/redo clavier (Cmd/Ctrl+Z, +Shift = redo).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        if (e.shiftKey) redo();
-        else undo();
-      }
+    player.addEventListener("play", onPlay);
+    player.addEventListener("pause", onPause);
+    return () => {
+      player.removeEventListener("frameupdate", onFrame);
+      player.removeEventListener("play", onPlay);
+      player.removeEventListener("pause", onPause);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  }, [hasVideo]);
 
   // Prévenir la perte de travail au rechargement (§11).
   useEffect(() => {
@@ -86,81 +75,61 @@ export default function EditorPage() {
     );
   }
 
-  const currentMs = frameToMs(currentFrame, fps) - offsetMs;
-  const selectedWord = words.find((w) => w.id === selectedId) ?? null;
-
-  const onWordTap = (id: string) => {
-    const w = words.find((x) => x.id === id);
-    if (!w) return;
-    setSelectedId(id);
-    playerRef.current?.seekTo(msToFrame(w.startMs, fps));
-  };
-
-  const undoRedoBar = (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={undo}
-        disabled={!canUndo}
-        data-testid="undo"
-        aria-label="Annuler"
-      >
-        ↶ Annuler
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={redo}
-        disabled={!canRedo}
-        data-testid="redo"
-        aria-label="Rétablir"
-      >
-        ↷ Rétablir
-      </Button>
-    </div>
-  );
+  const videoMs = frameToMs(currentFrame, fps);
 
   return (
-    <main
-      className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-4 px-4 py-6"
-      style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
-    >
-      <header className="flex items-center justify-between gap-3">
-        <Link href="/" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-          ← Retour
-        </Link>
-        <div className="flex items-center gap-2">
-          {undoRedoBar}
-          <ExportDialog />
+    <main className="flex min-h-dvh flex-col bg-bg lg:h-dvh lg:overflow-hidden">
+      {/* Barre du haut */}
+      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-4 lg:px-6">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
+          >
+            <ChevronLeft className="size-4" /> Retour
+          </Link>
+          <div className="hidden items-center gap-2 sm:flex">
+            <span className="size-2 rounded-full bg-brand" />
+            <span className="text-sm font-medium text-ink">Éditeur</span>
+          </div>
         </div>
+        <ExportDialog />
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-        {/* min-w-0 : sans ça, le WordRail (overflow-x) fait déborder la
-            colonne horizontalement sur mobile (blowout grid/flex). */}
-        <div className="flex min-w-0 flex-col gap-3">
-          <PlayerStage
-            renderProps={renderProps}
-            videoMeta={videoMeta}
-            playerRef={playerRef}
-            positionY={style.positionY}
-            onPositionChange={(y) => setStyle({ positionY: y })}
-          />
+      {/* Corps : scène (gauche) + panneau (droite) */}
+      <div className="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="flex min-w-0 flex-col p-4 lg:min-h-0 lg:overflow-y-auto lg:p-6">
+          {/* Player centré + barre de lecture */}
+          <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-4 lg:min-h-0">
+            <PlayerStage
+              renderProps={renderProps}
+              videoMeta={videoMeta}
+              playerRef={playerRef}
+              positionY={style.positionY}
+              onPositionChange={(y) => setStyle({ positionY: y })}
+            />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => playerRef.current?.toggle()}
+                aria-label={playing ? "Pause" : "Lecture"}
+                data-testid="play-toggle"
+                className="flex size-10 items-center justify-center rounded-full bg-ink text-bg transition-transform active:scale-95"
+              >
+                {playing ? (
+                  <Pause className="size-4" fill="currentColor" />
+                ) : (
+                  <Play className="size-4 translate-x-px" fill="currentColor" />
+                )}
+              </button>
+              <span className="font-mono text-xs tabular-nums text-ink-dim">
+                {formatClock(videoMs)} / {formatClock(videoMeta.durationMs)}
+              </span>
+            </div>
+          </div>
 
-          <WordRail
-            words={words}
-            currentMs={currentMs}
-            selectedId={selectedId}
-            onWordTap={(w) => onWordTap(w.id)}
-          />
-
-          {selectedWord && (
-            <WordEditor word={selectedWord} onClose={() => setSelectedId(null)} />
-          )}
-
-          {/* Mobile : le panneau de style s'ouvre en bottom sheet. */}
-          <div className="lg:hidden">
+          {/* Mobile : panneau de style en bottom sheet */}
+          <div className="shrink-0 pt-4 lg:hidden">
             <Sheet>
               <SheetTrigger
                 className={cn(buttonVariants({ variant: "outline" }), "h-10 w-full")}
@@ -178,15 +147,23 @@ export default function EditorPage() {
               </SheetContent>
             </Sheet>
           </div>
-        </div>
+        </section>
 
-        {/* Desktop : sidebar. */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-6 rounded-lg border border-line bg-panel p-4">
+        {/* Desktop : sidebar avec scroll interne (la page ne scrolle pas) */}
+        <aside className="hidden border-l border-line bg-panel lg:block lg:min-h-0 lg:overflow-y-auto">
+          <div className="p-5">
             <StylePanel />
           </div>
         </aside>
       </div>
     </main>
   );
+}
+
+/** Timecode mm:ss — secondes tronquées (comme tout lecteur vidéo). */
+function formatClock(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }

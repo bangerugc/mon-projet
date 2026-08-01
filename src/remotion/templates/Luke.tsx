@@ -4,9 +4,9 @@ import { getEntranceAnimation } from "../animations";
 import { baseTextStyle, fontPx } from "./common";
 import type { TemplateComponent } from "./types";
 
-// Karaoke — blanc ; le mot actif reçoit une pastille arrondie de couleur
-// `highlightColor` derrière lui. (§8 #2)
-export const Karaoke: TemplateComponent = ({
+// Luke — ton chaud/crème, gras italique majuscules, ombre douce ; le mot actif
+// passe en blanc (`highlightColor`). Style « Luke », calme et premium.
+export const Luke: TemplateComponent = ({
   page,
   activeWordIndex,
   style,
@@ -26,6 +26,9 @@ export const Karaoke: TemplateComponent = ({
       style={{
         ...baseTextStyle(style, size),
         fontWeight: 700,
+        fontStyle: "italic",
+        letterSpacing: `${size * 0.01}px`,
+        textShadow: `0 ${size * 0.02}px ${size * 0.1}px rgba(0,0,0,0.45)`,
         display: "flex",
         flexWrap: "wrap",
         justifyContent: "center",
@@ -35,22 +38,14 @@ export const Karaoke: TemplateComponent = ({
         filter: anim.filter,
       }}
     >
-      {page.words.map((w, i) => {
-        const active = i === activeWordIndex;
-        return (
-          <span
-            key={w.id}
-            style={{
-              padding: `${size * 0.06}px ${size * 0.18}px`,
-              borderRadius: `${size * 0.18}px`,
-              backgroundColor: active ? style.highlightColor : "transparent",
-              color: active ? "#ffffff" : style.color,
-            }}
-          >
-            {w.text}
-          </span>
-        );
-      })}
+      {page.words.map((w, i) => (
+        <span
+          key={w.id}
+          style={{ color: i === activeWordIndex ? style.highlightColor : style.color }}
+        >
+          {w.text}
+        </span>
+      ))}
     </div>
   );
 };

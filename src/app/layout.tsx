@@ -22,10 +22,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // App sombre par défaut (§7 : ne pas polluer la perception des couleurs
-  // de la vidéo). Le token --color-bg vient de globals.css.
   return (
-    <html lang="fr" className="dark">
+    <html lang="fr">
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-dvh bg-bg text-ink antialiased`}
       >

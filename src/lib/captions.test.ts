@@ -3,6 +3,9 @@ import {
   groupWordsIntoPages,
   getActivePageIndex,
   getActiveWordIndex,
+  getCurrentPageIndex,
+  getActiveWordInPage,
+  PAGE_HOLD_MS,
   MAX_WORDS_PER_LINE,
 } from "./captions";
 import type { Word } from "./types";
@@ -90,5 +93,50 @@ describe("getActiveWordIndex", () => {
 
   it("-1 hors de toute page", () => {
     expect(getActiveWordIndex(pages, 5000)).toBe(-1);
+  });
+});
+
+describe("getCurrentPageIndex (page persistante — anti-clignotement)", () => {
+  // 2 pages avec un TROU entre elles : [a b] 0–800, [c d] 1500–2300.
+  const pages = groupWordsIntoPages(
+    [w("a", 0, 400), w("b", 400, 800), w("c", 1500, 1900), w("d", 1900, 2300)],
+    2,
+  );
+
+  it("-1 avant la 1re page", () => {
+    const late = groupWordsIntoPages([w("x", 500, 900)], 2);
+    expect(getCurrentPageIndex(late, 100)).toBe(-1);
+  });
+
+  it("page courante quand on est dedans", () => {
+    expect(getCurrentPageIndex(pages, 200)).toBe(0);
+    expect(getCurrentPageIndex(pages, 1600)).toBe(1);
+  });
+
+  it("⭐ persiste dans le TROU entre deux pages (pas de clignotement)", () => {
+    // 1000 ms = après la fin de page0 (800) et avant page1 (1500)
+    expect(getCurrentPageIndex(pages, 1000)).toBe(0);
+  });
+
+  it("dernière page maintenue PAGE_HOLD_MS puis cachée", () => {
+    expect(getCurrentPageIndex(pages, 2300 + PAGE_HOLD_MS - 1)).toBe(1);
+    expect(getCurrentPageIndex(pages, 2300 + PAGE_HOLD_MS + 50)).toBe(-1);
+  });
+
+  it("aucune page si liste vide", () => {
+    expect(getCurrentPageIndex([], 100)).toBe(-1);
+  });
+});
+
+describe("getActiveWordInPage", () => {
+  const [page] = groupWordsIntoPages([w("a", 0, 400), w("b", 400, 800)], 2);
+
+  it("surligne le bon mot", () => {
+    expect(getActiveWordInPage(page!, 200)).toBe(0);
+    expect(getActiveWordInPage(page!, 500)).toBe(1);
+  });
+
+  it("-1 dans un gap inter-mots (page affichée, aucun mot surligné)", () => {
+    expect(getActiveWordInPage(page!, 900)).toBe(-1);
   });
 });

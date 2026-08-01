@@ -1,13 +1,12 @@
 import { useVideoConfig } from "remotion";
 import { msToFrame } from "@/lib/timing";
 import { getEntranceAnimation } from "../animations";
-import { baseTextStyle, fontPx } from "./common";
+import { baseTextStyle, fontPx, strokeStyle } from "./common";
 import type { TemplateComponent } from "./types";
 
-// Editorial — casse normale, letter-spacing léger, aucun contour, très calme
-// (animation `blur`). Le placement en ligne basse est géré par la composition
-// via positionY. (§8 #5)
-export const Editorial: TemplateComponent = ({
+// Hormozi 3 — gras majuscules blanc, contour noir + ombre portée DURE (offset,
+// sans flou) ; mot actif en `highlightColor` (jaune par défaut).
+export const Hormozi3: TemplateComponent = ({
   page,
   activeWordIndex,
   style,
@@ -26,16 +25,16 @@ export const Editorial: TemplateComponent = ({
     <div
       style={{
         ...baseTextStyle(style, size),
-        fontWeight: 500,
-        letterSpacing: `${size * 0.02}px`,
-        textShadow: "0 1px 6px rgba(0,0,0,0.35)",
+        fontWeight: 800,
+        textShadow: `${size * 0.045}px ${size * 0.045}px 0 rgba(0,0,0,0.9)`,
         display: "flex",
         flexWrap: "wrap",
         justifyContent: "center",
-        gap: `${size * 0.26}px`,
+        gap: `${size * 0.18}px`,
         opacity: anim.opacity,
         transform: anim.transform,
         filter: anim.filter,
+        ...strokeStyle(style, size),
       }}
     >
       {page.words.map((w, i) => (

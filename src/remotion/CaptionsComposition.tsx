@@ -11,8 +11,8 @@ import type { CaptionRenderProps } from "@/lib/types";
 import { frameToMs, msToFrame } from "@/lib/timing";
 import {
   groupWordsIntoPages,
-  getActivePageIndex,
-  getActiveWordIndex,
+  getCurrentPageIndex,
+  getActiveWordInPage,
 } from "@/lib/captions";
 import { loadAllFonts } from "./fonts";
 import { TEMPLATES } from "./templates";
@@ -44,9 +44,12 @@ export const CaptionsComposition: React.FC<CaptionRenderProps> = ({
   // Décalage de sync : on ajuste le temps des sous-titres, pas la vidéo.
   const adjustedMs = frameToMs(frame, fps) - offsetMs;
   const captionFrame = frame - msToFrame(offsetMs, fps);
-  const activePageIndex = getActivePageIndex(pages, adjustedMs);
-  const activeWordIndex = getActiveWordIndex(pages, adjustedMs);
-  const activePage = activePageIndex >= 0 ? pages[activePageIndex] : undefined;
+  // Page À AFFICHER : persiste jusqu'à la suivante → aucun clignotement.
+  const currentPageIndex = getCurrentPageIndex(pages, adjustedMs);
+  const activePage = currentPageIndex >= 0 ? pages[currentPageIndex] : undefined;
+  const activeWordIndex = activePage
+    ? getActiveWordInPage(activePage, adjustedMs)
+    : -1;
 
   const Template = TEMPLATES[style.template].Component;
 

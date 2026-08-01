@@ -2,10 +2,25 @@ import { describe, it, expect } from "vitest";
 import {
   mapWhisperWordsToWords,
   mapWhisperResponse,
+  collapseRepetitionLoops,
   MIN_WORD_MS,
+  LOOP_MIN_REPEATS,
   type WhisperVerboseResponse,
 } from "./openai";
 import fixture from "@/test/fixtures/whisper-response.json";
+import type { Word } from "./types";
+
+// Construit une séquence de mots à partir de textes (timings croissants).
+const seq = (texts: string[]): Word[] =>
+  texts.map((text, i) => ({
+    id: `w${i}`,
+    text,
+    startMs: i * 100,
+    endMs: i * 100 + 80,
+    confidence: null,
+  }));
+const rep = (block: string[], times: number): string[] =>
+  Array.from({ length: times }, () => block).flat();
 
 describe("mapWhisperWordsToWords", () => {
   it("convertit les secondes float en ms entières (Math.round)", () => {
@@ -83,5 +98,47 @@ describe("mapWhisperResponse (fixture réelle)", () => {
 
   it("réponse sans champ words → []", () => {
     expect(mapWhisperResponse({})).toEqual([]);
+  });
+});
+
+describe("collapseRepetitionLoops (garde-fou boucles Whisper)", () => {
+  const texts = (ws: Word[]) => ws.map((w) => w.text);
+
+  it("ne touche pas un texte sans répétition", () => {
+    const w = seq(["bonjour", "à", "tous", "bienvenue"]);
+    expect(collapseRepetitionLoops(w)).toEqual(w);
+  });
+
+  it("préserve une répétition volontaire (2× d'affilée, sous le seuil)", () => {
+    const w = seq(rep(["t", "as", "pas", "besoin"], 2));
+    expect(collapseRepetitionLoops(w)).toEqual(w); // 2 < 4 → gardé
+  });
+
+  it("préserve 3× un mot (emphase)", () => {
+    const w = seq(["non", "non", "non", "surtout"]);
+    expect(collapseRepetitionLoops(w)).toEqual(w);
+  });
+
+  it("collapse une boucle : mot répété LOOP_MIN_REPEATS fois", () => {
+    const w = seq(rep(["merci"], LOOP_MIN_REPEATS + 3));
+    expect(texts(collapseRepetitionLoops(w))).toEqual(["merci"]);
+  });
+
+  it("collapse une boucle de phrase (2 mots × 5)", () => {
+    const w = seq([...rep(["merci", "beaucoup"], 5), "salut"]);
+    expect(texts(collapseRepetitionLoops(w))).toEqual(["merci", "beaucoup", "salut"]);
+  });
+
+  it("garde le 1er bloc avec ses timings d'origine", () => {
+    const w = seq(rep(["a", "b"], 6));
+    const out = collapseRepetitionLoops(w);
+    expect(texts(out)).toEqual(["a", "b"]);
+    expect(out[0]?.startMs).toBe(0);
+    expect(out[1]?.startMs).toBe(100);
+  });
+
+  it("ne collapse pas des répétitions espacées (non consécutives)", () => {
+    const w = seq(["x", "y", "x", "y", "z", "x", "y"]); // "x y" pas 4× d'affilée
+    expect(collapseRepetitionLoops(w)).toEqual(w);
   });
 });

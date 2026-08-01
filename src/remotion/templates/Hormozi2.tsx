@@ -1,12 +1,12 @@
 import { useVideoConfig } from "remotion";
 import { msToFrame } from "@/lib/timing";
 import { getEntranceAnimation } from "../animations";
-import { baseTextStyle, fontPx } from "./common";
+import { baseTextStyle, fontPx, strokeStyle } from "./common";
 import type { TemplateComponent } from "./types";
 
-// Minimal — blanc, ombre portée douce, une ligne. Mot actif 100 % d'opacité,
-// les autres à 60 %. (§8 #1)
-export const Minimal: TemplateComponent = ({
+// Hormozi 2 — gras italique majuscules, contour noir épais + lueur douce ;
+// le mot actif prend `highlightColor` (vert par défaut). Style « Hormozi ».
+export const Hormozi2: TemplateComponent = ({
   page,
   activeWordIndex,
   style,
@@ -25,19 +25,25 @@ export const Minimal: TemplateComponent = ({
     <div
       style={{
         ...baseTextStyle(style, size),
-        fontWeight: 600,
-        textShadow: "0 2px 10px rgba(0,0,0,0.45)",
+        fontWeight: 800,
+        fontStyle: "italic",
+        letterSpacing: `${size * 0.005}px`,
+        textShadow: `0 ${size * 0.03}px ${size * 0.14}px rgba(0,0,0,0.55)`,
         display: "flex",
         flexWrap: "wrap",
         justifyContent: "center",
-        gap: `${size * 0.28}px`,
+        gap: `${size * 0.18}px`,
         opacity: anim.opacity,
         transform: anim.transform,
         filter: anim.filter,
+        ...strokeStyle(style, size),
       }}
     >
       {page.words.map((w, i) => (
-        <span key={w.id} style={{ opacity: i === activeWordIndex ? 1 : 0.6 }}>
+        <span
+          key={w.id}
+          style={{ color: i === activeWordIndex ? style.highlightColor : style.color }}
+        >
           {w.text}
         </span>
       ))}

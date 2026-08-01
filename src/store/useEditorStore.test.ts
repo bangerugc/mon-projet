@@ -21,7 +21,7 @@ describe("useEditorStore", () => {
     expect(s.videoSrc).toBeNull();
     expect(s.words).toEqual([]);
     expect(s.offsetMs).toBe(0);
-    expect(s.style.template).toBe("minimal");
+    expect(s.style.template).toBe("hormozi2");
     expect(s.style.positionY).toBe(0.78);
     expect(s.transcription).toEqual({ status: "idle", error: null });
   });
@@ -56,16 +56,17 @@ describe("useEditorStore", () => {
     expect(props).not.toBeNull();
     expect(props?.videoSrc).toBe("blob:xyz");
     expect(props?.words).toHaveLength(1);
-    expect(props?.style.template).toBe("minimal");
+    expect(props?.style.template).toBe("hormozi2");
     expect(props?.offsetMs).toBe(0);
   });
 
   it("setTemplate applique les défauts du template", () => {
-    useEditorStore.getState().setTemplate("punch");
+    useEditorStore.getState().setTemplate("leon");
     const { style } = useEditorStore.getState();
-    expect(style.template).toBe("punch");
+    expect(style.template).toBe("leon");
     expect(style.uppercase).toBe(true);
-    expect(style.maxWordsPerLine).toBe(2);
+    expect(style.font).toBe("komikaAxis");
+    expect(style.highlightColor).toBe("#f5511e");
   });
 
   describe("éditions + undo/redo", () => {
@@ -115,17 +116,36 @@ describe("useEditorStore", () => {
     });
   });
 
+  it("cleanRepetitions retire les répétitions consécutives (annulable)", () => {
+    const s = useEditorStore.getState();
+    s.setWords([
+      word("1", "salut", 0),
+      word("2", "toi", 100),
+      word("3", "salut", 200),
+      word("4", "toi", 300),
+      word("5", "fin", 400),
+    ]);
+    s.cleanRepetitions();
+    expect(useEditorStore.getState().words.map((w) => w.text)).toEqual([
+      "salut",
+      "toi",
+      "fin",
+    ]);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().words).toHaveLength(5);
+  });
+
   it("reset restaure l'état initial", () => {
     const store = useEditorStore.getState();
     store.setVideoSrc("blob:xyz");
     store.setWords([word("a", "le", 0)]);
-    store.setStyle({ template: "punch" });
+    store.setStyle({ template: "leon" });
     store.setTranscriptionStatus("error", "boom");
     store.reset();
     const s = useEditorStore.getState();
     expect(s.videoSrc).toBeNull();
     expect(s.words).toEqual([]);
-    expect(s.style.template).toBe("minimal");
+    expect(s.style.template).toBe("hormozi2");
     expect(s.transcription).toEqual({ status: "idle", error: null });
   });
 });

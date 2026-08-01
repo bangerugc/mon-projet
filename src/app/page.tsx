@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { Dropzone } from "@/components/Dropzone";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,8 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [upload, setUpload] = useState<UploadState>({ phase: "idle" });
   const [transcriptInfo, setTranscriptInfo] = useState<TranscriptInfo>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
 
   const revokeCurrent = () => {
@@ -116,6 +119,9 @@ export default function HomePage() {
         return;
       }
 
+      // Préparation en cours → affiche un chargement à la place de la dropzone.
+      setPreparing(true);
+
       // Preview instantanée (§10 Phase 2) : blob local, aucune attente réseau.
       revokeCurrent();
       const url = URL.createObjectURL(file);
@@ -126,6 +132,7 @@ export default function HomePage() {
         meta = await readVideoMeta(url);
       } catch {
         revokeCurrent();
+        setPreparing(false);
         setError("Impossible de lire cette vidéo. Vérifie qu'elle n'est pas corrompue.");
         return;
       }
@@ -133,10 +140,12 @@ export default function HomePage() {
       const durationCheck = validateVideoDurationMs(meta.durationMs);
       if (!durationCheck.ok) {
         revokeCurrent();
+        setPreparing(false);
         setError(durationCheck.reason);
         return;
       }
 
+      setVideoLoading(true);
       setVideoSrc(url);
       setVideoMeta({
         width: meta.width,
@@ -144,6 +153,7 @@ export default function HomePage() {
         fps: DEFAULT_FPS,
         durationMs: meta.durationMs,
       });
+      setPreparing(false);
 
       // Upload S3 + transcription en parallèle — n'empêchent pas la preview.
       void startBackgroundUpload(file);
@@ -158,6 +168,8 @@ export default function HomePage() {
     setError(null);
     setUpload({ phase: "idle" });
     setTranscriptInfo(null);
+    setPreparing(false);
+    setVideoLoading(false);
   };
 
   return (
@@ -170,15 +182,35 @@ export default function HomePage() {
       </header>
 
       {!videoSrc ? (
-        <Dropzone onSelect={onSelect} />
+        preparing ? (
+          <PreparingCard />
+        ) : (
+          <Dropzone onSelect={onSelect} />
+        )
       ) : (
         <div className="flex flex-col gap-4" data-testid="preview">
-          <video
-            src={videoSrc}
-            controls
-            playsInline
-            className="w-full rounded-lg border border-line bg-black"
-          />
+          {/* Preview compacte, cadrée façon Reels (9:16) — jamais géante. */}
+          <div className="flex justify-center">
+            <div className="relative">
+              <video
+                src={videoSrc}
+                controls
+                playsInline
+                onLoadedData={() => setVideoLoading(false)}
+                onCanPlay={() => setVideoLoading(false)}
+                className="max-h-[62vh] w-auto max-w-full rounded-xl border border-line bg-black shadow-sm"
+              />
+              {videoLoading && (
+                <div
+                  data-testid="video-loading"
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-black/40 backdrop-blur-[1px]"
+                >
+                  <Loader2 className="size-7 animate-spin text-white" />
+                  <span className="text-xs text-white/80">Chargement…</span>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="flex items-center justify-between gap-3">
             <UploadStatus state={upload} />
             <Button variant="outline" onClick={onReset} data-testid="reset">
@@ -217,6 +249,19 @@ export default function HomePage() {
   );
 }
 
+// Chargement affiché le temps que la vidéo se prépare (à la place de la dropzone).
+function PreparingCard() {
+  return (
+    <div
+      data-testid="preparing"
+      className="flex flex-col items-center justify-center gap-3 rounded-lg border border-line bg-panel px-6 py-16"
+    >
+      <Loader2 className="size-6 animate-spin text-ink-dim" />
+      <span className="text-sm text-ink-dim">Préparation de la vidéo…</span>
+    </div>
+  );
+}
+
 function UploadStatus({ state }: { state: UploadState }) {
   const label = (() => {
     switch (state.phase) {
@@ -252,9 +297,15 @@ function Transcript({
 }) {
   if (status === "transcribing") {
     return (
-      <p data-testid="transcript-status" className="text-sm text-ink-dim">
-        Transcription en cours…
-      </p>
+      <div data-testid="transcript-status" className="flex flex-col gap-2">
+        <span className="text-sm text-ink-dim">Transcription en cours…</span>
+        <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-line">
+          <div
+            className="absolute inset-y-0 left-0 w-2/5 rounded-full bg-brand"
+            style={{ animation: "ac-indeterminate 1.1s ease-in-out infinite" }}
+          />
+        </div>
+      </div>
     );
   }
   if (status !== "ready") return null;
@@ -273,21 +324,10 @@ function Transcript({
         )}
       </div>
 
-      {info?.empty ? (
+      {info?.empty && (
         <p className="text-sm text-ink-dim">
           Aucune parole détectée. Choisis une vidéo avec du son.
         </p>
-      ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {words.map((w) => (
-            <span
-              key={w.id}
-              className="rounded border border-line bg-panel px-1.5 py-0.5 text-sm text-ink"
-            >
-              {w.text}
-            </span>
-          ))}
-        </div>
       )}
     </section>
   );

@@ -1,21 +1,21 @@
 import type { TemplateId } from "@/lib/types";
 import { TEMPLATE_META, applyTemplateDefaults } from "@/lib/template-defaults";
 import type { TemplateComponent } from "./types";
-import { Minimal } from "./Minimal";
-import { Karaoke } from "./Karaoke";
-import { Punch } from "./Punch";
-import { Handwritten } from "./Handwritten";
-import { Editorial } from "./Editorial";
+import { Leon } from "./Leon";
+import { Hormozi2 } from "./Hormozi2";
+import { Ali } from "./Ali";
+import { Hormozi3 } from "./Hormozi3";
+import { Luke } from "./Luke";
 
 export type { TemplateComponent, TemplateComponentProps } from "./types";
 export { applyTemplateDefaults };
 
 const COMPONENTS: Record<TemplateId, TemplateComponent> = {
-  minimal: Minimal,
-  karaoke: Karaoke,
-  punch: Punch,
-  handwritten: Handwritten,
-  editorial: Editorial,
+  leon: Leon,
+  hormozi2: Hormozi2,
+  ali: Ali,
+  hormozi3: Hormozi3,
+  luke: Luke,
 };
 
 // Registry des templates (§8) = données (label + défauts, lib/template-defaults)

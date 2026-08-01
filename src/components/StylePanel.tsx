@@ -12,7 +12,59 @@ import {
 import { useEditorStore } from "@/store/useEditorStore";
 import { TEMPLATE_META, TEMPLATE_IDS } from "@/lib/template-defaults";
 import { OFFSET_MIN_MS, OFFSET_MAX_MS } from "@/lib/timing";
-import type { AnimationId, FontId } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import type { AnimationId, FontId, TemplateId } from "@/lib/types";
+
+// Aperçu visuel d'un template : le nom rendu dans SON propre style (comme les
+// vignettes de la référence). Approximation CSS légère (pas de Remotion ici).
+function TemplatePreview({ id, label }: { id: TemplateId; label: string }) {
+  const box =
+    "flex h-11 w-full items-center justify-center overflow-hidden rounded bg-[#4b4b52] px-1.5";
+  const stroke = {
+    WebkitTextStroke: "0.6px #000",
+    paintOrder: "stroke fill" as const,
+  };
+  const base = { fontSize: 11, whiteSpace: "nowrap" as const };
+  if (id === "leon")
+    return (
+      <div className={box}>
+        <span style={{ ...base, fontWeight: 800, fontStyle: "italic", textTransform: "uppercase", color: "#fff", backgroundColor: "#f5511e", padding: "1px 5px", borderRadius: 4, ...stroke }}>
+          {label}
+        </span>
+      </div>
+    );
+  if (id === "hormozi2")
+    return (
+      <div className={box}>
+        <span style={{ ...base, fontWeight: 800, fontStyle: "italic", textTransform: "uppercase", color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,.6)", ...stroke }}>
+          {label}
+        </span>
+      </div>
+    );
+  if (id === "ali")
+    return (
+      <div className={box}>
+        <span style={{ ...base, fontWeight: 700, fontStyle: "italic", color: "#111114", backgroundColor: "#fff", padding: "2px 7px", borderRadius: 6 }}>
+          {label}
+        </span>
+      </div>
+    );
+  if (id === "hormozi3")
+    return (
+      <div className={box}>
+        <span style={{ ...base, fontWeight: 800, textTransform: "uppercase", color: "#fff", textShadow: "1.5px 1.5px 0 rgba(0,0,0,.9)", ...stroke }}>
+          {label}
+        </span>
+      </div>
+    );
+  return (
+    <div className={box}>
+      <span style={{ ...base, fontWeight: 700, fontStyle: "italic", textTransform: "uppercase", color: "#e8dfd0", letterSpacing: 0.5 }}>
+        {label}
+      </span>
+    </div>
+  );
+}
 
 const FONT_OPTIONS: { id: FontId; label: string }[] = [
   { id: "poppins", label: "Poppins" },
@@ -39,10 +91,42 @@ function sliderValue(value: number | readonly number[]): number {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs text-ink-dim">{label}</span>
+    <label className="flex flex-col gap-2">
+      <span className="text-[11px] font-medium uppercase tracking-wider text-ink-dim">
+        {label}
+      </span>
       {children}
     </label>
+  );
+}
+
+function ColorField({
+  label,
+  value,
+  onChange,
+  testid,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  testid: string;
+}) {
+  return (
+    <Row label={label}>
+      <div className="flex h-9 items-center gap-2 rounded-md border border-line bg-panel pl-1.5 pr-2">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          data-testid={testid}
+          aria-label={label}
+          className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
+        />
+        <span className="font-mono text-xs uppercase tracking-wide text-ink-dim">
+          {value}
+        </span>
+      </div>
+    </Row>
   );
 }
 
@@ -71,14 +155,15 @@ export function StylePanel() {
                 onClick={() => setTemplate(id)}
                 data-testid={`template-${id}`}
                 data-active={style.template === id || undefined}
-                className={[
-                  "min-h-11 rounded-md border px-2 text-sm transition-colors",
+                aria-label={TEMPLATE_META[id].label}
+                className={cn(
+                  "rounded-lg border p-1 transition-all",
                   style.template === id
-                    ? "border-brand bg-brand/10 text-ink"
-                    : "border-line text-ink-dim hover:text-ink",
-                ].join(" ")}
+                    ? "border-brand ring-1 ring-brand"
+                    : "border-line hover:border-ink-dim",
+                )}
               >
-                {TEMPLATE_META[id].label}
+                <TemplatePreview id={id} label={TEMPLATE_META[id].label} />
               </button>
             ))}
           </div>
@@ -100,24 +185,18 @@ export function StylePanel() {
         </Row>
 
         <div className="grid grid-cols-2 gap-3">
-          <Row label="Couleur du texte">
-            <input
-              type="color"
-              value={style.color}
-              onChange={(e) => setStyle({ color: e.target.value })}
-              data-testid="color-text"
-              className="h-11 w-full rounded-md border border-line bg-bg"
-            />
-          </Row>
-          <Row label="Mot actif">
-            <input
-              type="color"
-              value={style.highlightColor}
-              onChange={(e) => setStyle({ highlightColor: e.target.value })}
-              data-testid="color-highlight"
-              className="h-11 w-full rounded-md border border-line bg-bg"
-            />
-          </Row>
+          <ColorField
+            label="Couleur du texte"
+            value={style.color}
+            onChange={(v) => setStyle({ color: v })}
+            testid="color-text"
+          />
+          <ColorField
+            label="Mot actif"
+            value={style.highlightColor}
+            onChange={(v) => setStyle({ highlightColor: v })}
+            testid="color-highlight"
+          />
         </div>
 
         <Row label={`Taille — ${style.fontSize}%`}>
