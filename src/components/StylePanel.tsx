@@ -133,7 +133,9 @@ function ColorField({
 export function StylePanel() {
   const style = useEditorStore((s) => s.style);
   const offsetMs = useEditorStore((s) => s.offsetMs);
+  const dedupeRepetitions = useEditorStore((s) => s.dedupeRepetitions);
   const setStyle = useEditorStore((s) => s.setStyle);
+  const setDedupeRepetitions = useEditorStore((s) => s.setDedupeRepetitions);
   const setTemplate = useEditorStore((s) => s.setTemplate);
   const setOffsetMs = useEditorStore((s) => s.setOffsetMs);
 
@@ -250,6 +252,22 @@ export function StylePanel() {
             />
           </Row>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setDedupeRepetitions(!dedupeRepetitions)}
+          data-testid="toggle-dedupe"
+          data-active={dedupeRepetitions || undefined}
+          className={cn(
+            "flex min-h-11 items-center justify-between rounded-md border px-3 text-sm",
+            dedupeRepetitions
+              ? "border-brand bg-brand/10 text-ink"
+              : "border-line text-ink-dim",
+          )}
+        >
+          <span>Retirer les répétitions</span>
+          <span className="font-mono text-xs">{dedupeRepetitions ? "ON" : "OFF"}</span>
+        </button>
       </TabsContent>
 
       {/* ── POSITION ──────────────────────────────────────────────────── */}

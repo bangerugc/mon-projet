@@ -3,8 +3,11 @@ import {
   mapWhisperWordsToWords,
   mapWhisperResponse,
   collapseRepetitionLoops,
+  collapseRetakes,
+  removeRepetitions,
   MIN_WORD_MS,
   LOOP_MIN_REPEATS,
+  RETAKE_MIN_ANCHOR,
   type WhisperVerboseResponse,
 } from "./openai";
 import fixture from "@/test/fixtures/whisper-response.json";
@@ -129,6 +132,29 @@ describe("collapseRepetitionLoops (garde-fou boucles Whisper)", () => {
     expect(texts(collapseRepetitionLoops(w))).toEqual(["merci", "beaucoup", "salut"]);
   });
 
+  it("réduit à UNE occurrence même pour un nombre PAIR de répétitions (minRepeats=2)", () => {
+    // Piège : longest-first voit "je pense" ×4 comme le super-bloc
+    // "je pense je pense" ×2 → sans période fondamentale il resterait 2 copies.
+    expect(texts(collapseRepetitionLoops(seq(rep(["je", "pense"], 4)), 2))).toEqual([
+      "je",
+      "pense",
+    ]);
+    expect(texts(collapseRepetitionLoops(seq(rep(["je", "pense"], 6)), 2))).toEqual([
+      "je",
+      "pense",
+    ]);
+    expect(texts(collapseRepetitionLoops(seq(rep(["merci"], 8)), 2))).toEqual(["merci"]);
+  });
+
+  it("ne sur-supprime pas un 'aa' interne légitime (période fondamentale)", () => {
+    // "a a b" ×2 : le bloc répété est "a a b" (période 3), pas "a".
+    expect(texts(collapseRepetitionLoops(seq(rep(["a", "a", "b"], 2)), 2))).toEqual([
+      "a",
+      "a",
+      "b",
+    ]);
+  });
+
   it("garde le 1er bloc avec ses timings d'origine", () => {
     const w = seq(rep(["a", "b"], 6));
     const out = collapseRepetitionLoops(w);
@@ -140,5 +166,64 @@ describe("collapseRepetitionLoops (garde-fou boucles Whisper)", () => {
   it("ne collapse pas des répétitions espacées (non consécutives)", () => {
     const w = seq(["x", "y", "x", "y", "z", "x", "y"]); // "x y" pas 4× d'affilée
     expect(collapseRepetitionLoops(w)).toEqual(w);
+  });
+});
+
+describe("mapWhisperWordsToWords — tokens d'hallucination", () => {
+  it("jette un token 'Bzzzz…' (même caractère ≥ 8×)", () => {
+    const words = mapWhisperWordsToWords([
+      { word: "salut", start: 0, end: 0.3 },
+      { word: "Bzzzzzzzzzzzzzzzz", start: 0.3, end: 2.0 },
+      { word: "fin", start: 2.0, end: 2.3 },
+    ]);
+    expect(words.map((w) => w.text)).toEqual(["salut", "fin"]);
+  });
+
+  it("garde les mots réels avec caractères répétés < 8 (nanana, coool)", () => {
+    const words = mapWhisperWordsToWords([
+      { word: "nanana", start: 0, end: 0.3 },
+      { word: "coool", start: 0.3, end: 0.6 },
+    ]);
+    expect(words.map((w) => w.text)).toEqual(["nanana", "coool"]);
+  });
+});
+
+describe("collapseRetakes (prises avortées)", () => {
+  const texts = (ws: Word[]) => ws.map((w) => w.text);
+  // Ancre de RETAKE_MIN_ANCHOR mots, réutilisée pour construire les cas.
+  const anchor = Array.from({ length: RETAKE_MIN_ANCHOR }, (_, k) => `a${k}`);
+
+  it("retire la prise avortée et garde la reprise finale", () => {
+    // [ancre + corps1] puis [ancre + corps2] → on garde la 2e prise.
+    const w = seq([...anchor, "corps1", ...anchor, "corps2", "suite"]);
+    expect(texts(collapseRetakes(w))).toEqual([...anchor, "corps2", "suite"]);
+  });
+
+  it("retire un retake séparé par un aparté (gap de quelques mots)", () => {
+    const w = seq([...anchor, "aparté", "court", ...anchor, "vraie", "suite"]);
+    expect(texts(collapseRetakes(w))).toEqual([...anchor, "vraie", "suite"]);
+  });
+
+  it("NE touche PAS une anaphore volontaire (ancre trop courte)", () => {
+    // 5 mots communs (< RETAKE_MIN_ANCHOR=6) puis continuations différentes.
+    const short = ["c", "est", "pas", "parce", "que"];
+    const w = seq([...short, "difficile", ...short, "nuls"]);
+    expect(collapseRetakes(w)).toEqual(w);
+  });
+
+  it("ne touche pas un texte sans reprise", () => {
+    const w = seq([...anchor, "puis", "autre", "chose", "différente"]);
+    expect(collapseRetakes(w)).toEqual(w);
+  });
+});
+
+describe("removeRepetitions (boucles + retakes combinés)", () => {
+  const texts = (ws: Word[]) => ws.map((w) => w.text);
+
+  it("collapse d'abord un bégaiement exact puis un retake", () => {
+    const anchor = ["m0", "m1", "m2", "m3", "m4", "m5"];
+    // bégaiement "salut salut" + retake [ancre]…[ancre]
+    const w = seq(["salut", "salut", ...anchor, "corps1", ...anchor, "corps2"]);
+    expect(texts(removeRepetitions(w))).toEqual(["salut", ...anchor, "corps2"]);
   });
 });

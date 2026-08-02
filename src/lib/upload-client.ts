@@ -56,6 +56,56 @@ export async function requestUploadUrl(file: {
   };
 }
 
+// ── Upload VIA SERVEUR (voie utilisée par l'app) ─────────────────────────────
+// POST multipart vers /api/upload : le serveur pousse sur S3 (pas de CORS requis
+// côté bucket). XHR pour la progression d'upload (fetch ne l'expose pas).
+
+export type ServerUploadResult =
+  | { status: "ok"; data: { key: string; publicUrl: string } }
+  | { status: "not_configured"; message: string }
+  | { status: "error"; message: string };
+
+export function uploadVideoViaServer(
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<ServerUploadResult> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      let body: { error?: string; key?: string; publicUrl?: string } = {};
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        /* réponse non-JSON → traitée comme erreur ci-dessous */
+      }
+      // 503 = S3 non configuré (dev sans AWS) → non bloquant.
+      if (xhr.status === 503) {
+        resolve({
+          status: "not_configured",
+          message: body.error ?? "Upload S3 non configuré.",
+        });
+        return;
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && body.key && body.publicUrl) {
+        resolve({ status: "ok", data: { key: body.key, publicUrl: body.publicUrl } });
+        return;
+      }
+      resolve({
+        status: "error",
+        message: body.error ?? `Upload échoué (HTTP ${xhr.status}).`,
+      });
+    };
+    xhr.onerror = () => resolve({ status: "error", message: "Réseau indisponible. Réessaie." });
+    const form = new FormData();
+    form.append("file", file);
+    xhr.send(form);
+  });
+}
+
 /** PUT le fichier sur l'URL présignée, en rapportant la progression 0→1. */
 export function uploadToS3(
   uploadUrl: string,

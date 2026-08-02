@@ -96,9 +96,11 @@ export default function EditorPage() {
         <ExportDialog />
       </header>
 
-      {/* Corps : scène (gauche) + panneau (droite) */}
-      <div className="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="flex min-w-0 flex-col p-4 lg:min-h-0 lg:overflow-y-auto lg:p-6">
+      {/* Corps : gouttière gauche (vide, = largeur du panneau) + scène centrée
+          + panneau (droite). La gouttière équilibre le panneau → l'aperçu est
+          centré par rapport à la PAGE, pas seulement à la zone de gauche. */}
+      <div className="grid flex-1 grid-cols-1 lg:min-h-0 lg:grid-cols-[360px_minmax(0,1fr)_360px]">
+        <section className="flex min-w-0 flex-col p-4 lg:col-start-2 lg:min-h-0 lg:overflow-y-auto lg:p-6">
           {/* Player centré + barre de lecture */}
           <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-4 lg:min-h-0">
             <PlayerStage
@@ -150,7 +152,7 @@ export default function EditorPage() {
         </section>
 
         {/* Desktop : sidebar avec scroll interne (la page ne scrolle pas) */}
-        <aside className="hidden border-l border-line bg-panel lg:block lg:min-h-0 lg:overflow-y-auto">
+        <aside className="hidden border-l border-line bg-panel lg:col-start-3 lg:block lg:min-h-0 lg:overflow-y-auto">
           <div className="p-5">
             <StylePanel />
           </div>

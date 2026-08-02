@@ -9,13 +9,25 @@ import type { CaptionPage, Word } from "./types";
 export const MIN_WORDS_PER_LINE = 1;
 export const MAX_WORDS_PER_LINE = 6;
 
+/**
+ * Pause (ms) entre deux mots au-delà de laquelle on FORCE une nouvelle page,
+ * même si la limite de mots n'est pas atteinte. Whisper reporte des silences
+ * réels (respiration, fin de phrase) : couper dessus fait changer les
+ * sous-titres AU RYTHME de la parole plutôt que tous les N mots aveuglément.
+ * Choisi > aux micro-gaps intra-phrase (~200-300 ms) pour ne pas sur-découper.
+ */
+export const PAGE_SPLIT_GAP_MS = 600;
+
 function clampWordsPerLine(n: number): number {
   if (!Number.isFinite(n)) return MIN_WORDS_PER_LINE;
   return Math.min(MAX_WORDS_PER_LINE, Math.max(MIN_WORDS_PER_LINE, Math.floor(n)));
 }
 
 /**
- * Découpe une liste de mots en pages de `maxWordsPerLine` mots (borné 1–6).
+ * Découpe une liste de mots en pages. Une nouvelle page démarre quand :
+ *   - la page atteint `maxWordsPerLine` mots (borné 1–6), OU
+ *   - une PAUSE ≥ PAGE_SPLIT_GAP_MS sépare le mot courant du précédent
+ *     (découpe calée sur les silences → sync avec la parole, §8).
  * Chaque page porte son propre intervalle [startMs, endMs] déduit de ses mots.
  * Tableau vide → aucune page.
  */
@@ -25,16 +37,26 @@ export function groupWordsIntoPages(
 ): CaptionPage[] {
   const size = clampWordsPerLine(maxWordsPerLine);
   const pages: CaptionPage[] = [];
+  let chunk: Word[] = [];
 
-  for (let i = 0; i < words.length; i += size) {
-    const chunk = words.slice(i, i + size);
+  const flush = () => {
     const first = chunk[0];
     const last = chunk[chunk.length - 1];
-    // chunk n'est jamais vide ici (i < words.length), mais on satisfait
-    // noUncheckedIndexedAccess proprement.
-    if (!first || !last) continue;
-    pages.push({ words: chunk, startMs: first.startMs, endMs: last.endMs });
+    if (first && last) {
+      pages.push({ words: chunk, startMs: first.startMs, endMs: last.endMs });
+    }
+    chunk = [];
+  };
+
+  for (const word of words) {
+    const prev = chunk[chunk.length - 1];
+    // Coupe si la page est pleine OU si un silence significatif précède ce mot.
+    if (prev && (chunk.length >= size || word.startMs - prev.endMs >= PAGE_SPLIT_GAP_MS)) {
+      flush();
+    }
+    chunk.push(word);
   }
+  flush();
 
   return pages;
 }
@@ -76,22 +98,30 @@ export function getActiveWordIndex(
 export const PAGE_HOLD_MS = 600;
 
 /**
+ * Anticipation : on affiche chaque page ce temps AVANT le `startMs` de son 1er
+ * mot. Compense le léger retard des timestamps mot-à-mot de Whisper (l'onset
+ * réel précède souvent la valeur reportée) et améliore le ressenti de sync :
+ * le sous-titre est là pile quand — voire juste avant que — le mot est dit.
+ */
+export const CAPTION_LEAD_IN_MS = 120;
+
+/**
  * Index de la page À AFFICHER à `currentMs` (≠ page « active »). Une page reste
- * affichée depuis son `startMs` JUSQU'AU début de la page suivante → aucun trou
- * entre les pages (pas de clignotement). La dernière page tient encore
- * PAGE_HOLD_MS après sa fin puis disparaît. -1 avant la 1re page.
+ * affichée depuis son `startMs` (moins l'anticipation) JUSQU'AU début de la page
+ * suivante → aucun trou entre les pages (pas de clignotement). La dernière page
+ * tient encore PAGE_HOLD_MS après sa fin puis disparaît. -1 avant la 1re page.
  */
 export function getCurrentPageIndex(
   pages: CaptionPage[],
   currentMs: number,
 ): number {
   const first = pages[0];
-  if (!first || currentMs < first.startMs) return -1;
+  if (!first || currentMs < first.startMs - CAPTION_LEAD_IN_MS) return -1;
 
   let idx = 0;
   for (let i = 0; i < pages.length; i++) {
     const p = pages[i];
-    if (p && p.startMs <= currentMs) idx = i;
+    if (p && p.startMs - CAPTION_LEAD_IN_MS <= currentMs) idx = i;
     else break;
   }
 

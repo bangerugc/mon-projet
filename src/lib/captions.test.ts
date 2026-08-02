@@ -6,6 +6,8 @@ import {
   getCurrentPageIndex,
   getActiveWordInPage,
   PAGE_HOLD_MS,
+  PAGE_SPLIT_GAP_MS,
+  CAPTION_LEAD_IN_MS,
   MAX_WORDS_PER_LINE,
 } from "./captions";
 import type { Word } from "./types";
@@ -51,6 +53,31 @@ describe("groupWordsIntoPages", () => {
     expect(groupWordsIntoPages(words, 999)).toHaveLength(1); // clampé à 6
     expect(groupWordsIntoPages(words, 999)[0]?.words).toHaveLength(4);
     expect(MAX_WORDS_PER_LINE).toBe(6);
+  });
+
+  it("coupe sur une PAUSE ≥ PAGE_SPLIT_GAP_MS même sous la limite de mots", () => {
+    // 3 mots collés, puis un gros silence, puis 2 mots collés. maxWords=6.
+    const gap = PAGE_SPLIT_GAP_MS + 100;
+    const ws = [
+      w("bonjour", 0, 300),
+      w("à", 300, 500),
+      w("tous", 500, 900),
+      w("bienvenue", 900 + gap, 1200 + gap), // après une pause
+      w("ici", 1200 + gap, 1500 + gap),
+    ];
+    const pages = groupWordsIntoPages(ws, 6);
+    expect(pages).toHaveLength(2);
+    expect(pages[0]?.words.map((x) => x.text)).toEqual(["bonjour", "à", "tous"]);
+    expect(pages[1]?.words.map((x) => x.text)).toEqual(["bienvenue", "ici"]);
+  });
+
+  it("ne coupe PAS sur un micro-gap intra-phrase (< seuil)", () => {
+    const ws = [
+      w("le", 0, 200),
+      w("petit", 200 + (PAGE_SPLIT_GAP_MS - 100), 700), // gap sous le seuil
+      w("chat", 700, 1000),
+    ];
+    expect(groupWordsIntoPages(ws, 6)).toHaveLength(1);
   });
 });
 
@@ -125,6 +152,15 @@ describe("getCurrentPageIndex (page persistante — anti-clignotement)", () => {
 
   it("aucune page si liste vide", () => {
     expect(getCurrentPageIndex([], 100)).toBe(-1);
+  });
+
+  it("anticipation : la page apparaît CAPTION_LEAD_IN_MS avant son 1er mot", () => {
+    const p = groupWordsIntoPages([w("salut", 1000, 1400)], 4);
+    // juste avant la fenêtre d'anticipation → rien
+    expect(getCurrentPageIndex(p, 1000 - CAPTION_LEAD_IN_MS - 1)).toBe(-1);
+    // dans la fenêtre d'anticipation (avant le mot) → déjà affichée
+    expect(getCurrentPageIndex(p, 1000 - CAPTION_LEAD_IN_MS + 1)).toBe(0);
+    expect(CAPTION_LEAD_IN_MS).toBeGreaterThan(0);
   });
 });
 

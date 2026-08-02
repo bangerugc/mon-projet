@@ -47,6 +47,8 @@ export async function GET(
     return NextResponse.json({
       done: progress.done,
       overallProgress: progress.overallProgress,
+      framesRendered: progress.framesRendered ?? 0,
+      outputSizeInBytes: progress.outputSizeInBytes ?? null,
       outputUrl: progress.outputFile ?? null,
       mock: false,
     });

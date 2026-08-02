@@ -8,7 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEditorStore } from "@/store/useEditorStore";
 import { validateVideoFile, validateVideoDurationMs } from "@/lib/upload";
-import { requestUploadUrl, uploadToS3 } from "@/lib/upload-client";
+import { uploadVideoViaServer } from "@/lib/upload-client";
 import { transcribeVideo } from "@/lib/transcribe-client";
 
 // fps réelle lue plus tard via getVideoMetadata (Phase 4) ; défaut raisonnable
@@ -67,29 +67,22 @@ export default function HomePage() {
   };
 
   const startBackgroundUpload = useCallback(async (file: File) => {
-    const presign = await requestUploadUrl(file);
-    if (presign.status === "not_configured") {
-      setUpload({ phase: "skipped", message: presign.message });
+    setUpload({ phase: "uploading", progress: 0 });
+    // Upload via le serveur (pas de CORS bucket requis). Progression 0→1.
+    const res = await uploadVideoViaServer(file, (f) =>
+      setUpload({ phase: "uploading", progress: f }),
+    );
+    if (res.status === "not_configured") {
+      setUpload({ phase: "skipped", message: res.message });
       return;
     }
-    if (presign.status === "error") {
-      setUpload({ phase: "error", message: presign.message });
+    if (res.status === "error") {
+      setUpload({ phase: "error", message: res.message });
       return;
     }
-    try {
-      setUpload({ phase: "uploading", progress: 0 });
-      await uploadToS3(presign.data.uploadUrl, file, (f) =>
-        setUpload({ phase: "uploading", progress: f }),
-      );
-      // URL S3 https → servira au render Lambda (jamais le blob, piège n°3).
-      useEditorStore.getState().setS3Url(presign.data.publicUrl);
-      setUpload({ phase: "done" });
-    } catch (e) {
-      setUpload({
-        phase: "error",
-        message: e instanceof Error ? e.message : "Upload échoué.",
-      });
-    }
+    // URL S3 https → /api/render présigne un GET pour Lambda (jamais le blob).
+    useEditorStore.getState().setS3Url(res.data.publicUrl);
+    setUpload({ phase: "done" });
   }, []);
 
   const startTranscription = useCallback(

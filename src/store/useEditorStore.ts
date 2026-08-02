@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { clampOffset } from "@/lib/timing";
 import * as actions from "@/lib/editor-actions";
-import { collapseRepetitionLoops } from "@/lib/openai";
+import { removeRepetitions } from "@/lib/openai";
 import { applyTemplateDefaults } from "@/lib/template-defaults";
 import type {
   CaptionRenderProps,
@@ -44,6 +44,8 @@ export type EditorState = {
   words: Word[];
   style: CaptionStyle;
   offsetMs: number;
+  /** Retire automatiquement les répétitions consécutives des sous-titres. */
+  dedupeRepetitions: boolean;
   transcription: { status: TranscriptionStatus; error: string | null };
   /** Historique undo/redo des mots. */
   past: Word[][];
@@ -59,6 +61,7 @@ export type EditorState = {
   setTemplate: (templateId: TemplateId) => void;
   /** Clampé dans [-500, 500] (§6). */
   setOffsetMs: (offsetMs: number) => void;
+  setDedupeRepetitions: (value: boolean) => void;
   setTranscriptionStatus: (
     status: TranscriptionStatus,
     error?: string | null,
@@ -71,8 +74,6 @@ export type EditorState = {
   mergeWord: (id: string) => void;
   shiftWordTiming: (id: string, deltaMs: number) => void;
   setWordTiming: (id: string, startMs: number, endMs: number) => void;
-  /** Retire les répétitions consécutives de phrases (≥ 2× d'affilée). */
-  cleanRepetitions: () => void;
 
   // ── Undo / redo ──────────────────────────────────────────────────────────
   undo: () => void;
@@ -109,6 +110,7 @@ const INITIAL = {
   words: [] as Word[],
   style: DEFAULT_STYLE,
   offsetMs: 0,
+  dedupeRepetitions: true,
   transcription: {
     status: "idle" as TranscriptionStatus,
     error: null as string | null,
@@ -144,6 +146,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
     setOffsetMs: (offsetMs) => set({ offsetMs: clampOffset(offsetMs) }),
 
+    setDedupeRepetitions: (dedupeRepetitions) => set({ dedupeRepetitions }),
+
     setTranscriptionStatus: (status, error = null) =>
       set({ transcription: { status, error } }),
 
@@ -155,10 +159,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
       commit((w) => actions.shiftWordTiming(w, id, deltaMs)),
     setWordTiming: (id, startMs, endMs) =>
       commit((w) => actions.setWordTiming(w, id, startMs, endMs)),
-
-    // Seuil 2 : retire les répétitions consécutives (emphase du locuteur),
-    // garde les répétitions espacées (phrases distinctes). Annulable (historique).
-    cleanRepetitions: () => commit((w) => collapseRepetitionLoops(w, 2)),
 
     undo: () =>
       set((state) => {
@@ -185,9 +185,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
     reset: () => set({ ...INITIAL }),
 
     getRenderProps: () => {
-      const { videoSrc, words, style, offsetMs } = get();
+      const { videoSrc, words, style, offsetMs, dedupeRepetitions } = get();
       if (!videoSrc) return null;
-      return { videoSrc, words, style, offsetMs };
+      // Retire boucles/bégaiements exacts ET retakes (prises avortées) des
+      // sous-titres affichés, sans toucher aux mots stockés (réversible).
+      const rendered = dedupeRepetitions ? removeRepetitions(words) : words;
+      return { videoSrc, words: rendered, style, offsetMs };
     },
   };
 });

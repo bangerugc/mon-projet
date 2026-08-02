@@ -116,8 +116,9 @@ describe("useEditorStore", () => {
     });
   });
 
-  it("cleanRepetitions retire les répétitions consécutives (annulable)", () => {
+  it("getRenderProps dédoublonne les répétitions consécutives (ON par défaut)", () => {
     const s = useEditorStore.getState();
+    s.setVideoSrc("blob:x");
     s.setWords([
       word("1", "salut", 0),
       word("2", "toi", 100),
@@ -125,14 +126,14 @@ describe("useEditorStore", () => {
       word("4", "toi", 300),
       word("5", "fin", 400),
     ]);
-    s.cleanRepetitions();
-    expect(useEditorStore.getState().words.map((w) => w.text)).toEqual([
-      "salut",
-      "toi",
-      "fin",
-    ]);
-    useEditorStore.getState().undo();
-    expect(useEditorStore.getState().words).toHaveLength(5);
+    // ON par défaut → "salut toi" ×2 collapsé dans le rendu (mots stockés intacts)
+    expect(
+      useEditorStore.getState().getRenderProps()?.words.map((w) => w.text),
+    ).toEqual(["salut", "toi", "fin"]);
+    expect(useEditorStore.getState().words).toHaveLength(5); // stockage intact
+
+    s.setDedupeRepetitions(false);
+    expect(useEditorStore.getState().getRenderProps()?.words).toHaveLength(5);
   });
 
   it("reset restaure l'état initial", () => {
