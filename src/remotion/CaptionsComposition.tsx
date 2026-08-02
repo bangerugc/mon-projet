@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AbsoluteFill,
   OffthreadVideo,
+  Sequence,
   useCurrentFrame,
   useVideoConfig,
   delayRender,
@@ -24,9 +25,26 @@ export const CaptionsComposition: React.FC<CaptionRenderProps> = ({
   words,
   style,
   offsetMs,
+  segments,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+
+  // Vidéo découpée : chaque segment gardé est un OffthreadVideo rogné, placé
+  // bout à bout sur la timeline compressée. Sans segments → vidéo entière.
+  const videoParts = useMemo(() => {
+    if (!segments || segments.length === 0) return null;
+    const parts: { key: number; from: number; trimBefore: number; trimAfter: number }[] = [];
+    let compressedStart = 0;
+    segments.forEach((seg, i) => {
+      const trimBefore = msToFrame(seg.startMs, fps);
+      const trimAfter = msToFrame(seg.endMs, fps);
+      if (trimAfter <= trimBefore) return;
+      parts.push({ key: i, from: compressedStart, trimBefore, trimAfter });
+      compressedStart += trimAfter - trimBefore;
+    });
+    return parts;
+  }, [segments, fps]);
 
   // §9 : charger les polices AVANT de capturer les frames, sinon la 1re
   // seconde sort en police système. Le render attend `continueRender`.
@@ -55,7 +73,15 @@ export const CaptionsComposition: React.FC<CaptionRenderProps> = ({
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#000000" }}>
-      {videoSrc ? <OffthreadVideo src={videoSrc} /> : null}
+      {videoSrc && videoParts ? (
+        videoParts.map((p) => (
+          <Sequence key={p.key} from={p.from} durationInFrames={p.trimAfter - p.trimBefore}>
+            <OffthreadVideo src={videoSrc} trimBefore={p.trimBefore} trimAfter={p.trimAfter} />
+          </Sequence>
+        ))
+      ) : videoSrc ? (
+        <OffthreadVideo src={videoSrc} />
+      ) : null}
 
       {activePage ? (
         <AbsoluteFill>

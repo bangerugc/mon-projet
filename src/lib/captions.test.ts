@@ -154,13 +154,12 @@ describe("getCurrentPageIndex (page persistante — anti-clignotement)", () => {
     expect(getCurrentPageIndex([], 100)).toBe(-1);
   });
 
-  it("anticipation : la page apparaît CAPTION_LEAD_IN_MS avant son 1er mot", () => {
+  it("la page apparaît pile au 1er mot (pas d'avance — Whisper est fidèle)", () => {
     const p = groupWordsIntoPages([w("salut", 1000, 1400)], 4);
-    // juste avant la fenêtre d'anticipation → rien
+    // Défaut : aucune anticipation → sous-titres jamais en avance sur la parole.
+    expect(CAPTION_LEAD_IN_MS).toBe(0);
     expect(getCurrentPageIndex(p, 1000 - CAPTION_LEAD_IN_MS - 1)).toBe(-1);
-    // dans la fenêtre d'anticipation (avant le mot) → déjà affichée
     expect(getCurrentPageIndex(p, 1000 - CAPTION_LEAD_IN_MS + 1)).toBe(0);
-    expect(CAPTION_LEAD_IN_MS).toBeGreaterThan(0);
   });
 });
 

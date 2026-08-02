@@ -45,12 +45,21 @@ export type CaptionStyle = {
   positionY: number; // 0 = haut, 1 = bas. Défaut 0.78
 };
 
+/** Plage de temps (ms) de la vidéo SOURCE à conserver (voir lib/segments.ts). */
+export type Segment = { startMs: number; endMs: number };
+
 /** Le contrat unique Player ⇄ Lambda. Ne jamais diverger. */
 export type CaptionRenderProps = {
   videoSrc: string; // blob: en preview, https S3 au render
   words: Word[];
   style: CaptionStyle;
   offsetMs: number; // décalage global de sync (-500 → +500)
+  /**
+   * Segments de la vidéo source à garder (répétitions/retakes coupés). Les
+   * `words` sont déjà remappés sur la timeline COMPRESSÉE correspondante.
+   * Absent/vide → toute la vidéo (aucune coupure).
+   */
+  segments?: Segment[];
 };
 
 /**

@@ -9,6 +9,13 @@ import type { CaptionRenderProps } from "@/lib/types";
 // Durée de vie de l'URL présignée du média source : doit couvrir tout le rendu.
 const SOURCE_URL_TTL_S = 2 * 60 * 60; // 2 h
 
+// Nombre de frames rendues par Lambda. Volontairement ÉLEVÉ → PEU de Lambdas
+// simultanées par rendu, pour ne pas dépasser la limite de concurrence Lambda
+// du compte (comptes AWS récents = quota bas → « Rate Exceeded »). Ex. vidéo
+// 3 min @30fps ≈ 5400 frames → ~6 Lambdas. Compromis vitesse/robustesse ; à
+// baisser une fois le quota de concurrence augmenté (Service Quotas AWS).
+const FRAMES_PER_LAMBDA = 900;
+
 /**
  * Remplace l'URL S3 "publique par la forme" du média source par une URL
  * présignée GET → Lambda lit la vidéo sans que le bucket soit public.
@@ -76,6 +83,7 @@ export async function POST(request: Request) {
       codec: "h264",
       imageFormat: "jpeg",
       privacy: "public",
+      framesPerLambda: FRAMES_PER_LAMBDA,
     });
     return NextResponse.json({ renderId, bucketName, mock: false });
   } catch (error) {

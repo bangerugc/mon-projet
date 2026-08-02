@@ -3,6 +3,7 @@
 import { useRef, useState, type PointerEvent, type RefObject } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { CaptionsComposition } from "@/remotion/CaptionsComposition";
+import { segmentsDurationMs } from "@/lib/segments";
 import type { CaptionRenderProps } from "@/lib/types";
 import type { VideoMeta } from "@/store/useEditorStore";
 
@@ -44,9 +45,14 @@ export function PlayerStage({
   const movedRef = useRef(false);
   const startYRef = useRef(0);
 
+  // Durée = segments gardés (vidéo coupée) si présents, sinon durée source.
+  const durationMs =
+    renderProps.segments && renderProps.segments.length > 0
+      ? segmentsDurationMs(renderProps.segments)
+      : videoMeta.durationMs;
   const durationInFrames = Math.max(
     1,
-    Math.round((videoMeta.durationMs / 1000) * videoMeta.fps),
+    Math.round((durationMs / 1000) * videoMeta.fps),
   );
 
   const yFromPointer = (clientY: number): number => {

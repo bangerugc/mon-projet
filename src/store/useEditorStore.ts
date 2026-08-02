@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { clampOffset } from "@/lib/timing";
 import * as actions from "@/lib/editor-actions";
 import { removeRepetitions } from "@/lib/openai";
+import { computeKeptSegments, remapWordsToSegments } from "@/lib/segments";
 import { applyTemplateDefaults } from "@/lib/template-defaults";
 import type {
   CaptionRenderProps,
@@ -185,12 +186,31 @@ export const useEditorStore = create<EditorState>((set, get) => {
     reset: () => set({ ...INITIAL }),
 
     getRenderProps: () => {
-      const { videoSrc, words, style, offsetMs, dedupeRepetitions } = get();
+      const { videoSrc, words, style, offsetMs, dedupeRepetitions, videoMeta } =
+        get();
       if (!videoSrc) return null;
-      // Retire boucles/bégaiements exacts ET retakes (prises avortées) des
-      // sous-titres affichés, sans toucher aux mots stockés (réversible).
-      const rendered = dedupeRepetitions ? removeRepetitions(words) : words;
-      return { videoSrc, words: rendered, style, offsetMs };
+      const totalMs = videoMeta?.durationMs ?? 0;
+
+      // Dédoublonnage OFF → vidéo entière, mots intacts.
+      if (!dedupeRepetitions) {
+        const segments = totalMs > 0 ? [{ startMs: 0, endMs: totalMs }] : undefined;
+        return { videoSrc, words, style, offsetMs, segments };
+      }
+
+      // ON : on retire boucles/bégaiements + retakes des sous-titres. Mots
+      // stockés intacts (réversible via le réglage).
+      const kept = removeRepetitions(words);
+
+      // Durée connue → on COUPE aussi la vidéo aux mêmes endroits et on remappe
+      // les mots sur la timeline compressée → vidéo et sous-titres restent
+      // synchro (fix « sous-titres/vidéo trop vite »).
+      if (totalMs > 0) {
+        const segments = computeKeptSegments(words, kept, totalMs);
+        const remapped = remapWordsToSegments(kept, segments);
+        return { videoSrc, words: remapped, style, offsetMs, segments };
+      }
+      // Durée inconnue (cas limite) → sous-titres dédoublonnés, pas de coupe.
+      return { videoSrc, words: kept, style, offsetMs };
     },
   };
 });

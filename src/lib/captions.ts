@@ -99,11 +99,13 @@ export const PAGE_HOLD_MS = 600;
 
 /**
  * Anticipation : on affiche chaque page ce temps AVANT le `startMs` de son 1er
- * mot. Compense le léger retard des timestamps mot-à-mot de Whisper (l'onset
- * réel précède souvent la valeur reportée) et améliore le ressenti de sync :
- * le sous-titre est là pile quand — voire juste avant que — le mot est dit.
+ * mot. Mesuré sur des vidéos réelles : les timestamps mot-à-mot de Whisper sont
+ * fidèles (médiane ≈ +90 ms, soit JUSTE APRÈS le mot). Une anticipation ferait
+ * donc apparaître les sous-titres EN AVANCE sur la parole → on la laisse à 0
+ * (sous-titres calés pile sur le timing transcrit). Réglage fin possible côté
+ * utilisateur via le curseur « Synchro ».
  */
-export const CAPTION_LEAD_IN_MS = 120;
+export const CAPTION_LEAD_IN_MS = 0;
 
 /**
  * Index de la page À AFFICHER à `currentMs` (≠ page « active »). Une page reste

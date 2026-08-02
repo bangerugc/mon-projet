@@ -5,6 +5,7 @@ import {
 } from "remotion";
 import type { CaptionRenderProps } from "@/lib/types";
 import { CaptionsComposition } from "./CaptionsComposition";
+import { segmentsDurationMs } from "@/lib/segments";
 import { DEFAULT_STYLE } from "@/store/useEditorStore";
 import { DEMO_WORDS } from "@/lib/demo-transcript";
 
@@ -23,11 +24,18 @@ const calculateCaptionsMetadata: CalculateMetadataFunction<
     // 30 fps (minimum §6) ; upgradable plus tard via @remotion/media-parser
     // pour rendre à la fps source exacte.
     const fps = FALLBACK.fps;
+    // Durée = celle des segments gardés (vidéo coupée) si fournis, sinon la
+    // durée source complète. Garde vidéo et sous-titres alignés (§ désync fix).
+    const segs = props.segments;
+    const durationMs =
+      segs && segs.length > 0
+        ? segmentsDurationMs(segs)
+        : meta.durationInSeconds * 1000;
     return {
       width: meta.width,
       height: meta.height,
       fps,
-      durationInFrames: Math.max(1, Math.round(meta.durationInSeconds * fps)),
+      durationInFrames: Math.max(1, Math.round((durationMs / 1000) * fps)),
     };
   } catch {
     return FALLBACK;

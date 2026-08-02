@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "studio": "remotion studio",
-    "deploy:fn": "remotion lambda functions deploy --region=eu-central-1",
+    "deploy:fn": "remotion lambda functions deploy --region=eu-central-1 --timeout=300",
     "deploy:site": "remotion lambda sites create src/remotion/index.ts --site-name=auto-captions --region=eu-central-1"
   },
   "dependencies": {
